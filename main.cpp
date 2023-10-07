@@ -1,42 +1,36 @@
 #include <iostream>
-#include "restricted-optimization.hh"
+#include "restricted-optimization.hpp"
 
-//using namespace::alg;
+using std::cout;
+using std::endl;
 
 typedef struct {
-    vecd x_final;
-    Matrix<double> trajectory;
+    Vector x_final;
+    Matrix trajectory;
 } test_data;
 
-test_data execute_test (real_function function, int n, std::vector<real_function> inequality_restrictions, std::vector<real_function> equality_restrictions,
-    vecd x_initial, double mu, double beta, string mode = "penalty-method", string minimization_method = "cojugate-gradient", string linear_search_method = "golden-section", 
-    string barrier_type = "log", unsigned int power = 2, double error = 1e-6, double precision = 1e-6, 
+test_data execute_test (RealFunction function, int n, std::vector<RealFunction> inequality_restrictions, std::vector<RealFunction> equality_restrictions,
+    Vector x_initial, double mu, double beta, std::string mode = "penalty-method", std::string minimization_method = "cojugate-gradient", std::string linear_search_method = "golden-section", 
+    std::string barrier_type = "log", unsigned int power = 2, double error = 1e-6, double precision = 1e-6, 
     double rho = 1, double eta = 0.5, double sigma = 0)
 {
-    vecd x_final;
+    Vector x_final(n);
     double f_final;
-    Matrix<double> trajectory;
+    Matrix trajectory(1, n);
 
-    vector_function gradf = grad(function, n);
+    VectorFunction gradf = gradient(function, n);
 
-    try 
-    {
-        if (mode == "barrier-method")
-            minimize_barrier_method(function, n, inequality_restrictions, x_initial, x_final, f_final, trajectory, minimization_method, linear_search_method,
-                                barrier_type, mu, beta, error, precision, rho, eta, sigma);
-        else if (mode == "penalty-method")
-            minimize_penalty_method(function, n, inequality_restrictions, equality_restrictions, x_initial, x_final, f_final, trajectory,
-            minimization_method, linear_search_method, power, mu, beta, error, precision, rho, eta, sigma);
-        else throw Invalid_option_exception();
-    }
-    catch (std::exception& e)
-    {
-        std::cout << "Exception: " << e.what() << "\n";
-    }
+    if (mode == "barrier-method")
+        minimize_barrier_method(function, n, inequality_restrictions, x_initial, x_final, f_final, trajectory, minimization_method, linear_search_method,
+                            barrier_type, mu, beta, error, precision, rho, eta, sigma);
+    else if (mode == "penalty-method")
+        minimize_penalty_method(function, n, inequality_restrictions, equality_restrictions, x_initial, x_final, f_final, trajectory,
+        minimization_method, linear_search_method, power, mu, beta, error, precision, rho, eta, sigma);
+    else throw InvalidOptionException();
 
-    int n_steps = trajectory.n_rows();
+    size_t n_steps = trajectory.nrows();
     if (n_steps == 0) return {x_final, trajectory};
-    int i = (n_steps > 300) ? n_steps - 300 : 0;
+    size_t i = (n_steps > 300) ? n_steps - 300 : 0;
     for (; i < n_steps; i++)   
         std::cout << i << ": " << trajectory[i] << endl;
     std::cout << "x_final = " << x_final << endl << "f_final = " << f_final << endl;
@@ -48,20 +42,20 @@ test_data execute_test (real_function function, int n, std::vector<real_function
 }
 
 // test 1 variables declaration (hard way)
-vecd x_initial1 = { -2, 1 };
-double function1 (vecd x)
+Vector x_initial1 = { -2, 1 };
+double function1 (Vector x)
 {
     return 100 * pow(x[1] - pow(x[0], 2), 2) + pow(1 - x[0], 2);
 }
-double restriction11 (vecd x)
+double restriction11 (Vector x)
 {
     return x[0] - x[1] * x[1];
 }
-double restriction12 (vecd x)
+double restriction12 (Vector x)
 {
     return -(x[0] * x[0]) + x[1];
 }
-std::vector<real_function> restrictions1 = { restriction11, restriction12 };
+std::vector<RealFunction> restrictions1 = { restriction11, restriction12 };
 
 /* NOTE: restrictions are always of the form "g_i(x) <= 0"!
 */
@@ -74,34 +68,34 @@ int main()
     execute_test(function1, 2, restrictions1, no_restrictions, x_initial1, 10, 0.1, "barrier-method", "newton-method", "golden-section", "log");
     /**/
     // test 2 
-    auto function2 = [](vecd x) { 
+    auto function2 = [](Vector x) { 
         return x[0] * x[0] + 0.5 * x[1] * x[1] + x[2] * x[2] + 0.5 * x[3] * x[3] - x[0] * x[2] + x[2] * x[3] - x[0] - 3 * x[1] + x[2] - x[3]; 
     };
-    std::vector<real_function> restrictions2 =
+    std::vector<RealFunction> restrictions2 =
     {
-        [](vecd x) { return -5 + x[0] + 2*x[1] + x[2] + x[3]; },
-        [](vecd x) { return -4 + 3*x[0] + x[1] + 2*x[2] - x[3]; },
-        [](vecd x) { return -x[1] - 4*x[3] + 1.5; },
-        [](vecd x) { return -x[0];},
-        [](vecd x) { return -x[1];},
-        [](vecd x) { return -x[2];},
-        [](vecd x) { return -x[3];}
+        [](Vector x) { return -5 + x[0] + 2*x[1] + x[2] + x[3]; },
+        [](Vector x) { return -4 + 3*x[0] + x[1] + 2*x[2] - x[3]; },
+        [](Vector x) { return -x[1] - 4*x[3] + 1.5; },
+        [](Vector x) { return -x[0];},
+        [](Vector x) { return -x[1];},
+        [](Vector x) { return -x[2];},
+        [](Vector x) { return -x[3];}
     };
-    vecd x_initial2 = { 0.5, 0.5, 0.5, 0.5 };
+    Vector x_initial2 = { 0.5, 0.5, 0.5, 0.5 };
     /**/
     cout << "test 2" << endl;
     execute_test(function2, 4, no_restrictions, no_restrictions, x_initial2, 10, 0.1, "barrier-method", "conjugate-gradient", "armijo");
     execute_test(function2, 4, restrictions2, no_restrictions, x_initial2, 10, 0.1, "barrier-method", "conjugate-gradient", "newton");
     /**/
     // test 3
-    real_function function3 = [](vecd x) { return pow(x[0] - 10, 3) + pow(x[1] - 20, 3); };
-    std::vector<real_function> restrictions3 =
+    RealFunction function3 = [](Vector x) { return pow(x[0] - 10, 3) + pow(x[1] - 20, 3); };
+    std::vector<RealFunction> restrictions3 =
     {
-        [](vecd x) { return -pow(x[0] - 5, 2) - pow(x[1] - 5, 2) + 100; },
-        [](vecd x) { return -pow(x[0] - 6, 2) - pow(x[1] - 5, 2); }, // 0-radius circle -> meaningless restriction
-        [](vecd x) { return -82.81 + pow(x[0] - 6, 2) + pow(x[1] - 5, 2); }
+        [](Vector x) { return -pow(x[0] - 5, 2) - pow(x[1] - 5, 2) + 100; },
+        [](Vector x) { return -pow(x[0] - 6, 2) - pow(x[1] - 5, 2); }, // 0-radius circle -> meaningless restriction
+        [](Vector x) { return -82.81 + pow(x[0] - 6, 2) + pow(x[1] - 5, 2); }
     };
-    vecd x_initial3 = { 13, 0 };
+    Vector x_initial3 = { 13, 0 };
     /* NOTE:
     feasible region: 14.095 < x < 15, 1/10 (50 - sqrt(-100 x^2 + 1200 x + 4681)) <= y <= 5 - sqrt(-x^2 + 10 x + 75)
     example feasible starting point: { 14.5, 1.8139428194732083 }
@@ -116,11 +110,11 @@ int main()
 
     // PENALTY
     // test 1
-    auto function4 = [](vecd x) { return 0.01 * pow(x[0] - 1, 2) + pow(x[1] - pow(x[0], 2), 2); };
-    std::vector<real_function> equality_restrictions4 = {
-        [](vecd x) { return x[0] + pow(x[2], 2) + 1; }
+    auto function4 = [](Vector x) { return 0.01 * pow(x[0] - 1, 2) + pow(x[1] - pow(x[0], 2), 2); };
+    std::vector<RealFunction> equality_restrictions4 = {
+        [](Vector x) { return x[0] + pow(x[2], 2) + 1; }
     };
-    vecd x_initial4 = { 2, 2, 2 };
+    Vector x_initial4 = { 2, 2, 2 };
     /**/
     cout << "penalty test 1" << endl;
     execute_test(function4, 3, no_restrictions, no_restrictions, x_initial4, 0.1, 10, "penalty-method", "conjugate-gradient", "armijo");
@@ -128,13 +122,13 @@ int main()
     /**/
 
     //test 2
-    auto function5 = [](vecd x) { return pow(x[0] - x[1], 2) + pow(x[1] + x[2] - 2, 2) + pow(x[3] - 1, 2) + pow(x[4] - 1, 2); };
-    std::vector<real_function> equality_restrictions5 = {
-        [](vecd x) { return x[0] + 3*x[1] - 4; },
-        [](vecd x) { return x[2] + x[3] - 2*x[4]; },
-        [](vecd x) { return x[1] - x[4]; }
+    auto function5 = [](Vector x) { return pow(x[0] - x[1], 2) + pow(x[1] + x[2] - 2, 2) + pow(x[3] - 1, 2) + pow(x[4] - 1, 2); };
+    std::vector<RealFunction> equality_restrictions5 = {
+        [](Vector x) { return x[0] + 3*x[1] - 4; },
+        [](Vector x) { return x[2] + x[3] - 2*x[4]; },
+        [](Vector x) { return x[1] - x[4]; }
     };
-    vecd x_initial5 = { 2.5, 0.5, 2, -1, 0.5 };
+    Vector x_initial5 = { 2.5, 0.5, 2, -1, 0.5 };
 
     /**/
     cout << "penalty test 2" << endl;
@@ -150,10 +144,10 @@ int main()
     /**/
 
     //test 3
-    auto function6 = [](vecd x) { return pow(x[0] - 2, 2) + pow(x[1] - 1, 2); };
-    std::vector<real_function> inequality_restrictions6 = { [](vecd x) { return 0.25*x[0]*x[0] + x[1]*x[1] - 1; } };
-    std::vector<real_function> equality_restrictions6 = { [](vecd x) { return x[0] - 2*x[1] + 1; } };
-    vecd x_initial6 = { 2, 2 };
+    auto function6 = [](Vector x) { return pow(x[0] - 2, 2) + pow(x[1] - 1, 2); };
+    std::vector<RealFunction> inequality_restrictions6 = { [](Vector x) { return 0.25*x[0]*x[0] + x[1]*x[1] - 1; } };
+    std::vector<RealFunction> equality_restrictions6 = { [](Vector x) { return x[0] - 2*x[1] + 1; } };
+    Vector x_initial6 = { 2, 2 };
 
     /**/
     cout << "penalty test 3" << endl;
@@ -171,20 +165,20 @@ int main()
     // PENALTY AND BARRIER
     
     //test 1
-    auto function7 = [](vecd x) { return x[0]*x[3]*(x[0]+x[1]+x[2])+x[2]; };
-    std::vector<real_function> inequality_restrictions7 = {
-        [](vecd x) { return -(x[0]*x[1]*x[2]*x[3]) + 25; },
-        [](vecd x) { return -(x[0]*x[0]) - (x[1]*x[1]) - (x[2]*x[2]) - (x[3]*x[3]) + 40; },
-        [](vecd x) { return -x[0] + 1; },
-        [](vecd x) { return -x[1] + 1; },
-        [](vecd x) { return -x[2] + 1; },
-        [](vecd x) { return -x[3] + 1; },
-        [](vecd x) { return x[0] - 5; },
-        [](vecd x) { return x[1] - 5; },
-        [](vecd x) { return x[2] - 5; },
-        [](vecd x) { return x[3] - 5; },
+    auto function7 = [](Vector x) { return x[0]*x[3]*(x[0]+x[1]+x[2])+x[2]; };
+    std::vector<RealFunction> inequality_restrictions7 = {
+        [](Vector x) { return -(x[0]*x[1]*x[2]*x[3]) + 25; },
+        [](Vector x) { return -(x[0]*x[0]) - (x[1]*x[1]) - (x[2]*x[2]) - (x[3]*x[3]) + 40; },
+        [](Vector x) { return -x[0] + 1; },
+        [](Vector x) { return -x[1] + 1; },
+        [](Vector x) { return -x[2] + 1; },
+        [](Vector x) { return -x[3] + 1; },
+        [](Vector x) { return x[0] - 5; },
+        [](Vector x) { return x[1] - 5; },
+        [](Vector x) { return x[2] - 5; },
+        [](Vector x) { return x[3] - 5; },
     };
-    vecd x_initial7 = { 3, 4, 4, 3};
+    Vector x_initial7 = { 3, 4, 4, 3};
 
     /**/
     cout << "both test 1" << endl;
@@ -200,32 +194,32 @@ int main()
                  "conjugate-gradient", "armijo", "log", 2, 1e-6, 1e-6, 1, 0.5, 10);  
     // checking for restrictions
     cout << "h(x): { ";
-    for (auto restriction : equality_restrictions6)
+    for (auto& restriction : equality_restrictions6)
         cout << restriction(data7.x_final) << " ";
     cout << "}" << endl << endl;  
     /**/
     
-    auto function8 = [](vecd x) { return x[0] - x[1] - x[2] - x[0]*x[2] + x[0]*x[3] + x[1]*x[2] - x[1]*x[3]; };
-    std::vector<real_function> inequality_restrictions8 = {
-        [](vecd x) { return -8 + x[0] + 2*x[1]; },
-        [](vecd x) { return -12 + 4*x[0] + x[1]; },
-        [](vecd x) { return -12 + 3*x[0] + 4*x[1]; },
-        [](vecd x) { return -8 + 2*x[2] + x[3]; },
-        [](vecd x) { return -8 + x[2] + 2*x[3]; },
-        [](vecd x) { return -5 + x[2] + x[3]; },
-        [](vecd x) { return -x[0]; },
-        [](vecd x) { return -x[1]; },
-        [](vecd x) { return -x[2]; },
-        [](vecd x) { return -x[3]; },
+    auto function8 = [](Vector x) { return x[0] - x[1] - x[2] - x[0]*x[2] + x[0]*x[3] + x[1]*x[2] - x[1]*x[3]; };
+    std::vector<RealFunction> inequality_restrictions8 = {
+        [](Vector x) { return -8 + x[0] + 2*x[1]; },
+        [](Vector x) { return -12 + 4*x[0] + x[1]; },
+        [](Vector x) { return -12 + 3*x[0] + 4*x[1]; },
+        [](Vector x) { return -8 + 2*x[2] + x[3]; },
+        [](Vector x) { return -8 + x[2] + 2*x[3]; },
+        [](Vector x) { return -5 + x[2] + x[3]; },
+        [](Vector x) { return -x[0]; },
+        [](Vector x) { return -x[1]; },
+        [](Vector x) { return -x[2]; },
+        [](Vector x) { return -x[3]; },
     };
-    vecd x_initial8 = { 1, 1, 1, 1 };
+    Vector x_initial8 = { 1, 1, 1, 1 };
     /**/
     cout << "both test 2" << endl;
     test_data data81 = execute_test(function8, 4, no_restrictions, no_restrictions, x_initial8, 10, 0.1, "barrier-method",
                  "quasi-newton", "newton", "log", 2, 1e-6, 1e-6, 1, 0.5, 1);
-    cout << "g(x) <= 0: " << check_inequality_restrictions(inequality_restrictions8, data81.x_final) << endl; 
+    cout << "g(x) <= 0: " << std::to_string(check_inequality_restrictions(inequality_restrictions8, data81.x_final)) << endl; 
     cout << "g(x): { ";
-    for (auto restriction : inequality_restrictions8)
+    for (auto& restriction : inequality_restrictions8)
         cout << restriction(data81.x_final) << " ";
     cout << "}" << endl << endl;  
     /**/
@@ -252,17 +246,17 @@ int main()
     cout << "}" << endl << endl;  
     /**/
 
-    auto function9 = [](vecd x) { 
+    auto function9 = [](Vector x) { 
         return pow(x[0] - 10, 2) + 5*pow(x[1] - 12, 2) + pow(x[3], 4) + 3*pow(x[3] - 11, 2) 
                + 10*pow(x[4], 6) + 7*pow(x[5], 2) + pow(x[6], 4) - 4*x[5]*x[6] - 10*x[5] - 8*x[6]; 
     };
-    std::vector<real_function> inequality_restrictions9 = {
-        [](vecd x) { return - (127 -x[0]*x[0] - 3*pow(x[1], 4) - x[2] - 4*x[3]*x[3] - 5*x[4]); },
-        [](vecd x) { return - (282 - 7*x[0] - 3*x[1] - 10*x[2]*x[2] - x[3] + x[4]); },
-        [](vecd x) { return - (196 - 23*x[0]*x[0] - x[1]*x[1] - 6*x[5]*x[5] + 8*x[6]); },
-        [](vecd x) { return - (-4*x[0]*x[0] - x[1]*x[1] + 3*x[0]*x[1] - 2*x[2]*x[2] - 5*x[5] + 11*x[6]); }
+    std::vector<RealFunction> inequality_restrictions9 = {
+        [](Vector x) { return - (127 -x[0]*x[0] - 3*pow(x[1], 4) - x[2] - 4*x[3]*x[3] - 5*x[4]); },
+        [](Vector x) { return - (282 - 7*x[0] - 3*x[1] - 10*x[2]*x[2] - x[3] + x[4]); },
+        [](Vector x) { return - (196 - 23*x[0]*x[0] - x[1]*x[1] - 6*x[5]*x[5] + 8*x[6]); },
+        [](Vector x) { return - (-4*x[0]*x[0] - x[1]*x[1] + 3*x[0]*x[1] - 2*x[2]*x[2] - 5*x[5] + 11*x[6]); }
     };
-    vecd x_initial9 = { 1, 2, 0, 4, 0, 1, 1};
+    Vector x_initial9 = { 1, 2, 0, 4, 0, 1, 1};
     /**/
     cout << "both test 3" << endl;
     test_data data91 = execute_test(function9, 7, no_restrictions, no_restrictions, x_initial9, 10, 0.1, "barrier-method",
@@ -288,7 +282,7 @@ int main()
     /**/  
     /**/
     test_data data93 = execute_test(function9, 7, inequality_restrictions9, no_restrictions, x_initial9, 0.1, 10, "penalty-method",
-                 "conjugate-gradient", "armijo", "log", 2, 1e-5, 1e-6, 1, 0.1, 0);  
+                 "conjugate-gradient", "newton", "log", 2, 1e-5, 1e-6, 1, 0.1, 0);  
     // checking for restrictions
     cout << "h(x): { ";
     for (auto restriction : inequality_restrictions9)
