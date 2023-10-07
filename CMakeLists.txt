@@ -1,13 +1,24 @@
-cmake_minimum_required (VERSION 3.12)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.12)
 
-set (cmake_cxx_standard 20)
+SET (CMAKE_CXX_STANDARD 17)
 
-set (project_name "non-linear-optimization")
+SET (CMAKE_DEBUG_POSTFIX d)
 
-project (${project_name})
+SET (PROJECT_NAME "non-linear-optimization")
 
-add_executable (${project_name} main.cpp)
+PROJECT (${PROJECT_NAME})
 
-find_library (linalgdeb linear_algebra_debug)
 
-target_link_libraries (${project_name} linalgdeb)
+# add_library (linalg linear_algebra.cpp)
+# set_target_properties (linalg 
+#     PROPERTIES 
+#     debug_postfix ${cmake_debug_postfix}
+#     LINKER_LANGUAGE CXX    
+# )
+
+ADD_EXECUTABLE (${PROJECT_NAME} main.cpp)
+SET_TARGET_PROPERTIES (${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
+
+# find_library (linalg linear_algebra)
+
+# target_link_libraries (${project_name} linalg)

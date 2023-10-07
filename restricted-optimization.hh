@@ -29,6 +29,20 @@ typedef function<double(vecd, double, vecd)> phi_function;   // A specific type 
 
 double inf = std::numeric_limits<double>::infinity();
 std::vector<real_function> no_restrictions = std::vector<real_function>();
+size_t nTerminationCutoff = 100'000;
+void setTerminationCutoff(size_t cutoff) { nTerminationCutoff = cutoff; }
+
+std::vector<std::pair<size_t,size_t>> countingStack;
+void pushCount(size_t cap = nTerminationCutoff) { countingStack.push_back({cap,0u}); }
+void popCount() { if (!countingStack.empty()) countingStack.pop_back(); }
+bool checkCount() 
+{ 
+    if (!countingStack.empty()) {
+        return ++countingStack.back().second > countingStack.back().first; 
+    }
+    else 
+        return false; 
+} 
 
 /*
     Takes a real function func of n variables and returns a vector_function that evaluates the gradient of func
@@ -104,11 +118,13 @@ double step_golden_section (phi_function phi, vecd x, vecd d, double error = 1e-
     double a = 0;
     double s = rho;
     double b = 2 * rho;
+    pushCount();
     while (phi(x, b, d) < phi(x, s, d))
     {
         a = s;
         s = b;
         b *= 2;
+        if (checkCount()) { std::cout << "EXCEEDED COUNT.\n"; break; }
     }
     // stage 2 - obtaining t_bar in [a, b]
     double u = a + theta1 * (b - a);
@@ -127,7 +143,9 @@ double step_golden_section (phi_function phi, vecd x, vecd d, double error = 1e-
             u = v;
             v = a + theta2 * (b - a);             
         }
+        if (checkCount()) { std::cout << "EXCEEDED COUNT.\n"; break; }
     }
+    popCount();
     return u / 2. + v / 2.;
 }
 
@@ -182,13 +200,16 @@ double step_newton_method(phi_function phi, vecd x, vecd d, double t_initial, do
     double t = t_initial;
     std::function<double(double)> d_phi_dt = D(phi, x, d, error);
     std::function<double(double)> d2_phi_dt2 = D2(phi, x, d);
+    pushCount();
     while (std::fabs(t - t_previous) > error)
     {
         t_previous = t;
         if (d_phi_dt(t) == 0) break;
         if (d2_phi_dt2(t) == 0) break;
+        if (checkCount()) { std::cout << "EXCEEDED COUNT.\n"; break; }
         t = t_previous - d_phi_dt(t_previous) / d2_phi_dt2(t_previous);
     }
+    popCount();
     return t;
 }
 
@@ -200,6 +221,7 @@ double step_newton_method(phi_function phi, vecd x, vecd d, double t_initial, do
 double step_armijo_criterion(real_function func, vector_function grad, vecd x, vecd direction, double eta = 0.5)
 {
     double t = 1;
+    pushCount();
     while (true)
     {
         double linear_delta = eta * t * grad(x) * direction;
@@ -207,7 +229,10 @@ double step_armijo_criterion(real_function func, vector_function grad, vecd x, v
         if (step <= func(x) + linear_delta)
             break;
         t *= 0.8;
+
+        if (checkCount()) { std::cout << "EXCEEDED COUNT.\n"; break; }
     }
+    popCount();
     return t;
 }
 
@@ -283,6 +308,7 @@ void minimize_newton_method (real_function func, int n, std::vector<real_functio
     };
 
     // main loop
+    pushCount(10);
     while (gradf(x_final).norm() > error)
     {
         // step size calculation
@@ -309,7 +335,10 @@ void minimize_newton_method (real_function func, int n, std::vector<real_functio
         while (restrictions.size() > 0 && check_inequality_restrictions(restrictions, x_final + t_k * direction) == false) 
             t_k *= 0.9; // if g_i(x_k) >= 0 for some i, let's try to "walk back" a little on direction d to the feasible region
             if ((t_k * direction).norm() <= error) // we walked back until we're too close to x_{k-1}
-                return;
+                {
+                    popCount();
+                    return;
+                }
 
         // updating x
         x_final += + t_k * direction;
@@ -325,7 +354,10 @@ void minimize_newton_method (real_function func, int n, std::vector<real_functio
         }
         // if the algorithm is taking too long, occasionally check to see if it's making progress
         if (trajectory.n_rows() % (size_t)1e3 == 0) cout << trajectory.n_rows() << ": " << *(trajectory.end() - 1) << endl;
+
+        if (checkCount()) { std::cout << "EXCEEDED COUNT.\n"; break; }
     }
+    popCount();
 }
 
 /*
@@ -375,6 +407,7 @@ void minimize_conjugate_gradient (real_function func, int n, std::vector<real_fu
     };
 
     // main loop
+    pushCount(10);
     while (gradf(x_final).norm() > error)
     {
         // step size calculation
@@ -396,7 +429,10 @@ void minimize_conjugate_gradient (real_function func, int n, std::vector<real_fu
         while (restrictions.size() > 0 && check_inequality_restrictions(restrictions, x_final + t_k * direction) == false) 
             t_k *= 0.9; 
             if (norm(t_k * direction) <= error) // we walked back until we're too close to x_{k-1}
+            {
+                popCount();
                 return;
+            }
 
         // updating x
         vecd x_prev = x_final;
@@ -417,7 +453,10 @@ void minimize_conjugate_gradient (real_function func, int n, std::vector<real_fu
         }
         // if the algorithm is taking too long, occasionally check to see if it's making progress
         if (trajectory.n_rows() % (size_t)1e3 == 0) cout << trajectory.n_rows() << ": " << *(trajectory.end() - 1) << endl;
+        
+        if (checkCount()) { std::cout << "EXCEEDED COUNT.\n"; break; }
     }
+    popCount();
 }
 
 /*
@@ -471,6 +510,7 @@ void minimize_quasi_newton_method (real_function func, int n, std::vector<real_f
     Matrix<double> H = (beta) * I<double>(n);
 
     // main loop
+    pushCount(10);
     while (gradf(x_final).norm() > error)
     {
         // determining step size
@@ -492,7 +532,10 @@ void minimize_quasi_newton_method (real_function func, int n, std::vector<real_f
         while (restrictions.size() > 0 && check_inequality_restrictions(restrictions, x_final + t_k * direction) == false) 
             t_k *= 0.9; // if g_i(x_k) >= 0 for some i, let's try to "walk back" a little on direction d to the feasible region
             if (norm(t_k * direction) <= error) // we walked back until we're too close to x_{k-1}
+            {
+                popCount();
                 return;
+            }
         
         // updating x
         vecd p = t_k * direction;
@@ -511,7 +554,10 @@ void minimize_quasi_newton_method (real_function func, int n, std::vector<real_f
         }
         // if the algorithm is taking too long, occasionally check to see if it's making progress
         if (trajectory.n_rows() % (size_t)1e3 == 0) cout << trajectory.n_rows() << ": " << *(trajectory.end() - 1) << endl;
+
+        if (checkCount()) { std::cout << "EXCEEDED COUNT.\n"; break; }
     }
+    popCount();
 }
 
 /*
@@ -616,6 +662,7 @@ void minimize_barrier_method (real_function func, int n, std::vector<real_functi
     }
     vecd x_prev = x_initial;
     real_function barrier_function = generate_barrier_function(restrictions, barrier_type);
+    pushCount(10);
     while (true)
     {
         real_function lagrangian = [func, mu, barrier_function](vecd x) { return func(x) + mu * barrier_function(x); };
@@ -635,7 +682,9 @@ void minimize_barrier_method (real_function func, int n, std::vector<real_functi
             break;
         mu *= beta;
         x_prev = x_final;
+        if (checkCount()) { std::cout << "EXCEEDED COUNT.\n"; break; }
     }
+    popCount();
     f_final = func(x_final);   
 }
 
@@ -753,6 +802,7 @@ void minimize_penalty_method (real_function func, int n, std::vector<real_functi
     auto dont_check_restrictions = std::vector<real_function>();
     vecd x_prev = x_initial;
     real_function penalty_function = generate_penalty_function(inequality_restrictions, equality_restrictions, power);
+    pushCount(10);
     while (true)
     {
         real_function lagrangian = [func, mu, penalty_function](vecd x) { return func(x) + mu * penalty_function(x); };
@@ -771,7 +821,10 @@ void minimize_penalty_method (real_function func, int n, std::vector<real_functi
             break;
         mu *= beta;
         x_prev = x_final;
+        
+        if (checkCount()) { std::cout << "EXCEEDED COUNT.\n"; break; }
     }
+    popCount();
     f_final = func(x_final);  
 }
 

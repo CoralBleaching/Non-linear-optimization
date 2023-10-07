@@ -153,15 +153,19 @@ namespace alg {
 			return *(--end());
 		}
 		/**/
-		void erase(Iterator i)
+		auto erase(Iterator i)
 		{
-			vector<T> new_vector = {};
-			for (auto it = begin(); it != end(); it++)
-			{
-				if (it != i)
-					new_vector.push_back(*it);
-			}
-			list = new_vector;
+			std::ptrdiff_t dist = i - begin();
+			auto it = _vector.begin() + dist;
+			_vector.erase(it);
+
+			// vector<T> new_vector = {};
+			// for (auto it = begin(); it != end(); it++)
+			// {
+			// 	if (it != i)
+			// 		new_vector.push_back(*it);
+			// }
+			// list = new_vector;
 		}
  
 		void insert(Iterator it1, Iterator it2_b, Iterator it2_e)
@@ -296,7 +300,7 @@ namespace alg {
 
 		vector<T> operator- (T t)
 		{
-			return v + (-t);
+			return *this + (-t);
 		}
 
 		friend vector<T> operator- (T t, vector<T> v)
@@ -723,52 +727,6 @@ namespace alg {
 				throw linear_algebra_exception("Cannot convert non-row/non-column matrix to vector.");
 		}
 
-		// Returns a transposed copy of matrix M.
-		friend Matrix<T> t(Matrix<T> M)
-		{
-			if (M.isVector())
-			{
-				if (M.isRow())
-					return Matrix(M[0], true); // this constructor creates a column matrix.
-				else
-					if (M.isColumn())
-					{
-						size_t n = M.n_rows();
-						Matrix matrix = Matrix<T>(1, n);
-						for (size_t j = 0; j < n; j++) matrix[0][j] = M[j][0];
-						return matrix;
-					}
-			}
-			else
-			{
-				Matrix matrix = Matrix<T>(M);
-				size_t m = M.n_rows();
-				size_t n = M.n_columns();
-				if (m != n)
-				{
-					std::ostringstream error_msg("Transpose error: non-square matrix. Dimensions: ");
-					error_msg << m << "x" << n << std::endl;
-					throw linear_algebra_exception(error_msg.str().data());
-				}
-				for (size_t i = 0; i < m; i++)
-					for (size_t j = 0; j < i; j++)
-					{
-						T aux = matrix[i][j];
-						matrix[i][j] = matrix[j][i];
-						matrix[j][i] = aux;
-					}
-				return matrix;
-			}
-			throw linear_algebra_exception("Transpose error: matrix has zero dimensions.");
-		}
-
-		// Method for creating a column vector (of alg::Matrix type) from an alg::vector object.
-		friend Matrix<T> t(vector<T> v)
-		{
-			Matrix<T> M = Matrix<T>(v);
-			return M;
-		}
-
 		// The Euclidean norm of the row/column matrix.
 		T norm()
 		{
@@ -778,36 +736,6 @@ namespace alg {
 				return v.norm();
 			}
 			throw linear_algebra_exception("Tried to take the norm of non-row/non-column matrix.");
-		}
-
-		// The Euclidean norm of the row/column matrix. (Alternative for clarity of sintax)
-		friend T norm(Matrix<T> v)
-		{
-			return v.norm();
-		}
-
-		// Overload allows for easy printing of matrix's contents.
-		friend std::ostream& operator<< (std::ostream& output, Matrix<T> matrix)
-		{
-			size_t m = matrix.n_rows();
-			size_t n = matrix.n_columns();
-			std::ostringstream line;
-			line << "{";
-			for (size_t i = 0; i < m; i++)
-			{
-				std::ostringstream column;
-				column << "{ ";
-				for (size_t j = 0; j < n; j++)
-				{
-					if (j < n - 1) column << matrix[i][j] << ", ";
-					else column << matrix[i][j] << " }";
-				}
-				if (i > 0) line << " ";
-				if (i < m - 1) line << column.str() << ",\n";
-				else line << column.str() << "}";
-			}
-			output << line.str();
-			return output;
 		}
 
 		// Mathematical operators overloading
@@ -913,11 +841,6 @@ namespace alg {
 			*this = *this + v;
 		}
 
-		friend vector<T> operator+ (vector<T> v, Matrix<T> m)
-		{
-			return m + v;
-		}
-
 		Matrix<T> operator- (vector<T> v)
 		{
 			return (*this) + (-v);
@@ -928,26 +851,12 @@ namespace alg {
 			*this = *this - v;
 		}
 
-		friend Matrix<T> operator- (std::vector<T> v, Matrix<T> m)
-		{
-			return m - v;
-		}
-
 		// If an alg::vector is multiplied by a Matrix from the right, it will be treated as a column vector.
 		// The return type will still be an alg::vector with no information on whether it's supposed to be column or row.
 		vector<T> operator* (vector<T> v)
 		{
 			Matrix vm = Matrix<T>(v); // make v into a column-vector in matrix representation.
 			Matrix mul = (*this) * vm;
-			return mul.toVector();
-		}
-
-		// If a Matrix is multiplied by an alg::vector from the right, the alg::vector will be treated as a row vector.
-		// The return type will still be an alg::vector with no information on whether it's supposed to be column or row.
-		friend vector<T> operator* (vector<T> v, Matrix<T> m)
-		{
-			Matrix vm = Matrix(v, false); // make v into a row-vector in matrix representation.
-			Matrix mul = vm * m;
 			return mul.toVector();
 		}
 
@@ -964,11 +873,6 @@ namespace alg {
 			return sum;
 		}
 
-		friend Matrix<T> operator+ (T t, Matrix<T> M)
-		{
-			return M + t;
-		}
-
 		void operator+= (T t)
 		{
 			(*this) = (*this) + t;
@@ -977,11 +881,6 @@ namespace alg {
 		Matrix<T> operator- (T t)
 		{
 			return (*this) + (-t);
-		}
-
-		friend Matrix<T> operator- (T t, Matrix<T> M)
-		{
-			return -M + t;
 		}
 
 		void operator-= (T t)
@@ -998,11 +897,6 @@ namespace alg {
 				for (size_t j = 0; j < n; j++)
 					mul[i][j] *= t;
 			return mul;
-		}
-
-		friend Matrix<T> operator* (T t, Matrix<T> M)
-		{
-			return M * t;
 		}
 
 		void operator*= (T t)
@@ -1022,6 +916,61 @@ namespace alg {
 
 	};
 
+	// Returns a transposed copy of matrix M.
+	template <typename T>
+	Matrix<T> t(Matrix<T> M)
+	{
+		if (M.isVector())
+		{
+			if (M.isRow())
+				return Matrix(M[0], true); // this constructor creates a column matrix.
+			else
+				if (M.isColumn())
+				{
+					size_t n = M.n_rows();
+					Matrix matrix = Matrix<T>(1, n);
+					for (size_t j = 0; j < n; j++) matrix[0][j] = M[j][0];
+					return matrix;
+				}
+		}
+		else
+		{
+			Matrix matrix = Matrix<T>(M);
+			size_t m = M.n_rows();
+			size_t n = M.n_columns();
+			if (m != n)
+			{
+				std::ostringstream error_msg("Transpose error: non-square matrix. Dimensions: ");
+				error_msg << m << "x" << n << std::endl;
+				throw linear_algebra_exception(error_msg.str().data());
+			}
+			for (size_t i = 0; i < m; i++)
+				for (size_t j = 0; j < i; j++)
+				{
+					T aux = matrix[i][j];
+					matrix[i][j] = matrix[j][i];
+					matrix[j][i] = aux;
+				}
+			return matrix;
+		}
+		throw linear_algebra_exception("Transpose error: matrix has zero dimensions.");
+	}
+
+	// Method for creating a column vector (of alg::Matrix type) from an alg::vector object.
+	template <typename T>
+	Matrix<T> t(vector<T> v)
+	{
+		Matrix<T> M = Matrix<T>(v);
+		return M;
+	}
+
+	// The Euclidean norm of the row/column matrix. (Alternative for clarity of sintax)
+	template <typename T>
+	T norm(Matrix<T> v)
+	{
+		return v.norm();
+	}
+
 	// Generates an identity matrix of size m. 
 	template <typename T>
 	Matrix<T> I(size_t m)
@@ -1031,6 +980,70 @@ namespace alg {
 		return e;
 	}
 
+		// If a Matrix is multiplied by an alg::vector from the right, the alg::vector will be treated as a row vector.
+		// The return type will still be an alg::vector with no information on whether it's supposed to be column or row.
+	template <typename T>
+	vector<T> operator* (vector<T> v, Matrix<T> m)
+	{
+		Matrix vm = Matrix(v, false); // make v into a row-vector in matrix representation.
+		Matrix mul = vm * m;
+		return mul.toVector();
+	}
+		
+	template <typename T>
+	vector<T> operator+ (vector<T> v, Matrix<T> m)
+	{
+		return m + v;
+	}
+
+	template <typename T>
+	Matrix<T> operator- (std::vector<T> v, Matrix<T> m)
+	{
+		return m - v;
+	}
+
+	template <typename T>
+	Matrix<T> operator+ (T t, Matrix<T> M)
+	{
+		return M + t;
+	}
+
+	template <typename T>
+	Matrix<T> operator- (T t, Matrix<T> M)
+	{
+		return -M + t;
+	}
+
+	template <typename T>
+	Matrix<T> operator* (T t, Matrix<T> M)
+	{
+		return M * t;
+	}
+
+	// Overload allows for easy printing of matrix's contents.
+	template <typename T>
+	std::ostream& operator<< (std::ostream& output, Matrix<T> matrix)
+	{
+		size_t m = matrix.n_rows();
+		size_t n = matrix.n_columns();
+		std::ostringstream line;
+		line << "{";
+		for (size_t i = 0; i < m; i++)
+		{
+			std::ostringstream column;
+			column << "{ ";
+			for (size_t j = 0; j < n; j++)
+			{
+				if (j < n - 1) column << matrix[i][j] << ", ";
+				else column << matrix[i][j] << " }";
+			}
+			if (i > 0) line << " ";
+			if (i < m - 1) line << column.str() << ",\n";
+			else line << column.str() << "}";
+		}
+		output << line.str();
+		return output;
+	}
 }
 
 // Overload allows for easy printing of std::vectors' contents.
