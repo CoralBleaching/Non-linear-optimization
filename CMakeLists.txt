@@ -16,7 +16,7 @@ SET_TARGET_PROPERTIES (${PROJECT_NAME}
     RELEASE_POSTFIX ""
 )
 
-FIND_LIBRARY (linalg linear_algebra PATHS ${CMAKE_CURRENT_SOURCE_DIR}/../out/)
+FIND_LIBRARY (linalg linear_algebra PATHS ${CMAKE_CURRENT_SOURCE_DIR}/../build/Release)
 
 IF(NOT linalg)
     MESSAGE(FATAL_ERROR "Linear algebra library not found.")

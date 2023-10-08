@@ -69,7 +69,7 @@ VectorFunction gradient(RealFunction func, int n, double e = 1e-6)
         Vector g(n);
         for (int i = 0; i < n; i++)
         {
-            g[i] = (func(x + E.row(i)) - func(x - E.row(i))) / (2 * e);
+            g[i] = (func(x + E[i]) - func(x - E[i])) / (2 * e);
         }
         return g;
     };
@@ -94,9 +94,9 @@ MatrixFunction jacobian(VectorFunction G, int n, double e = 1e-4)
     return [G, n, e](Vector x) {
         Matrix H(n, n);
         Matrix M = e * I(n);
-        for (int i = 0; i < n; i++)
-            for (int j = 0; j < n; j++)
-                H[i][j] = (G(x + M.row(j)) - G(x - M.row(j))).at(i) / (4 * e) + (G(x + M.row(i)) - G(x - M.row(i))).at(j) / (4 * e);
+        for (size_t i = 0; i < n; i++)
+            for (size_t j = 0; j < n; j++)
+                H(i, j) = (G(x + M[j]) - G(x - M[j]))[i] / (4 * e) + (G(x + M[i]) - G(x - M[i]))[j] / (4 * e);
         H = 0.5 * (H + t(H));
         return H;
     };
@@ -165,29 +165,15 @@ std::function<double(double)> D(PhiFunction phi, Vector x, Vector d, double erro
 
 
 /*
-    Shorthand to calculate the two-dimensional derivatives of so-called "phi functions" as defined above
-    by using the 'jacob' function previously. It actually returns a function that evaluates the second
-    derivative at point 't'.
+    Shorthand to calculate the two-dimensional derivatives of so-called "phi functions" as defined above. 
+    It actually returns a function that evaluates the second derivative at point 't'.
 */
 std::function<double(double)> D2(PhiFunction phi, Vector x, Vector d, double error = 1e-6)
-{
-    VectorFunction deriv = [phi, x, d, error](Vector t) {
-        return Vector({ D(phi, x, d, error)(t[0]) });
-    };
-    MatrixFunction deriv2 = jacobian(deriv, 1, error);
-    return [deriv2](double t) {
-        return deriv2({ t })[0][0];
-    };
-}
-
-/* BETTER LESS FANCY VERSION
-function<double(double)> D2(phi_function phi, Vector x, Vector d, double error = 1e-6)
 {
     return [phi, x, d, error](double t) {
         return (phi(x, t + 2 * error, d) - 2 * phi(x, t, d) + phi(x, t - 2 * error, d)) / (4 * error * error);
     };
 }
-/**/
 
 /*
     Algorithm for the search of step size to be utilized in optimizing routines. Numerically approximates
@@ -300,7 +286,7 @@ void minimize_newton_method(RealFunction func, int n, std::vector<RealFunction> 
 
     Vector direction = -gradf(x_initial);
     x_final = x_initial;
-    trajectory.push_back(x_final);
+    trajectory.insertRow(x_final);
     // linearization of f(x) in order to determine the step size in the direction 'd'.
     PhiFunction phi = [func](Vector x, double t, Vector d) {
         return func(x + t * d);
@@ -343,7 +329,7 @@ void minimize_newton_method(RealFunction func, int n, std::vector<RealFunction> 
         x_final += t_k * direction;
 
         // recording the current step
-        trajectory.push_back(x_final);
+        trajectory.insertRow(x_final);
 
         // safety measure to avoid division by zero (stationary point prematurely reached).
         if (trajectory.nrows() > 1 && *(trajectory.end() - 1) == *(trajectory.end() - 2))
@@ -400,7 +386,7 @@ void minimize_conjugate_gradient(RealFunction func, int n, std::vector<RealFunct
 
     Vector direction = -gradf(x_initial);
     x_final = x_initial;
-    trajectory.push_back(x_final);
+    trajectory.insertRow(x_final);
     // linearization of f(x) in order to determined the step size in the direction 'd'.
     PhiFunction phi = [func](Vector x, double t, Vector d) {
         return func(x + t * d);
@@ -443,7 +429,7 @@ void minimize_conjugate_gradient(RealFunction func, int n, std::vector<RealFunct
         direction = -gradf(x_final) + beta_k * direction;
 
         // recording the current step
-        trajectory.push_back(x_final);
+        trajectory.insertRow(x_final);
 
         // safety measure to avoid division by zero (stationary point prematurely reached).
         if (trajectory.nrows() > 1 && *(trajectory.end() - 1) == *(trajectory.end() - 2))
@@ -502,7 +488,7 @@ void minimize_quasi_newton_method(RealFunction func, int n, std::vector<RealFunc
 
     Vector direction = -gradf(x_initial);
     x_final = x_initial;
-    trajectory.push_back(x_final);
+    trajectory.insertRow(x_final);
     // linearization of f(x) in order to determined the step size in the direction 'd'.
     PhiFunction phi = [func](Vector x, double t, Vector d) {
         return func(x + t * d);
@@ -546,7 +532,7 @@ void minimize_quasi_newton_method(RealFunction func, int n, std::vector<RealFunc
         H += (1. + (q * H * q) / (p * q)) * ((p.col() * p.row()) / (p * q)) - ((p.col() * q.row()) * H + H * (q.col() * p.row())) / (p * q);
 
         // recording the current step
-        trajectory.push_back(x_final);
+        trajectory.insertRow(x_final);
         // safety measure to avoid division by zero (stationary point prematurely reached).
         if (trajectory.nrows() > 1 && *(trajectory.end() - 1) == *(trajectory.end() - 2))
         {
